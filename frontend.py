@@ -211,11 +211,9 @@ def main():
         # Optionally clamp or apply sigmoid if needed
         output_np = canvas.detach().clone()
         # If you want a [0,1] range:
-        output_np = torch.sigmoid(output_np)
         output_np = output_np.squeeze().permute(1,2,0).numpy()
-        print(output_np)
         # Show with Streamlit
-        st.image(output_np, caption="Generated Image", clamp=False, use_container_width=True)
+        st.image(output_np[:,:,::-1], caption="Sentence Encoding", clamp=True, use_container_width=True)
 
 if __name__ == "__main__":
     main()
