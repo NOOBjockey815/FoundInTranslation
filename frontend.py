@@ -1,3 +1,7 @@
+###pip install streamlit
+###Run: streamlit run frontend.py    or     python -m streamlit run frontend.py
+
+
 import streamlit as st
 import torch
 from gensim.models import Word2Vec
