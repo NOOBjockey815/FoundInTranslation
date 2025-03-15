@@ -19,7 +19,8 @@ import re
 def load_w2v_model():
     # Adjust the path to your "bare_minimum" model if needed
     w2v = Word2Vec.load("bare_minimum")
-    return w2v
+    w2vjp = Word2Vec.load("bare_minimumjp")
+    return w2v, w2vjp
 
 # ------------------------------
 # 2) Define your Encoder/Decoder
@@ -171,18 +172,21 @@ def init_models():
     torch.manual_seed(42)
     enc = torch.load("encoder1", weights_only=False)
     dec = torch.load("decoder1", weights_only=False)
+    encjp = torch.load("encoder1jp", weights_only=False)
     
-    return enc, dec
+    return enc, dec, encjp
 
 # ------------------------------
 # 5) Streamlit UI
 # ------------------------------
 def main():
     st.title("🔎Found In Translation")
+    
+    jp = False
 
     # 1) Load resources
-    w2v = load_w2v_model()
-    enc, dec = init_models()
+    w2v, w2vjp = load_w2v_model()
+    enc, dec, encjp = init_models()
 
     # 3) Let user input one of the three sentences
     user_sentence = st.text_input("Enter one of the trained sentences here:")
@@ -197,20 +201,39 @@ def main():
         # 4) Generate the image
         canvas = torch.zeros(1,3,128,128)
         for w in words:
-            if w not in w2v.wv.key_to_index:
-                st.warning(f"Word '{w}' not in vocabulary. Using zero vector.")
-                w_vec = torch.zeros((1,16))
+            if not jp:
+                if w not in w2v.wv.key_to_index:
+                    st.warning(f"Word '{w}' not in vocabulary. Using zero vector.")
+                    w_vec = torch.zeros((1,16))
+                else:
+                    w_vec = torch.from_numpy(w2v.wv[w]).float().unsqueeze(0)
             else:
-                w_vec = torch.from_numpy(w2v.wv[w]).float().unsqueeze(0)
-            canvas = enc(w_vec, canvas)
+                if w not in w2vjp.wv.key_to_index:
+                    st.warning(f"Word '{w}' not in vocabulary. Using zero vector.")
+                    w_vec = torch.zeros((1,16))
+                else:
+                    w_vec = torch.from_numpy(w2vjp.wv[w]).float().unsqueeze(0)
+            if not jp:
+                canvas = enc(w_vec, canvas)
+            else:
+                canvas = encjp(w_vec, canvas)
+        pic = canvas.clone()
+        context = torch.zeros((1,10))
+        caption = []
+        for w in words:
+            word, canvas = dec(canvas, context)
+            context = word
+            caption.append(word)
         
         # 5) Convert to numpy and show
         # Optionally clamp or apply sigmoid if needed
-        output_np = canvas.detach().clone()
+        output_np = pic.detach().clone()
         # If you want a [0,1] range:
         output_np = output_np.squeeze().permute(1,2,0).numpy()
         # Show with Streamlit
-        st.image(output_np[:,:,::-1], caption="Sentence Encoding", clamp=True, use_container_width=True)
+        st.image(output_np[:,:,::-1],
+                 caption="Decoded sentence:"+" ".join([w2v.wv.index_to_key[w.argmax()] for w in caption]),
+                 clamp=True, use_container_width=True)
 
 if __name__ == "__main__":
     main()
