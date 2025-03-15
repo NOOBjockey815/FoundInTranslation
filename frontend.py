@@ -1,7 +1,5 @@
 ###pip install streamlit
 ###Run: streamlit run frontend.py    or     python -m streamlit run frontend.py
-
-
 import streamlit as st
 import torch
 from gensim.models import Word2Vec
@@ -170,9 +168,9 @@ class Decoder(nn.Module):
 @st.cache_resource
 def init_models():
     torch.manual_seed(42)
-    enc = torch.load("encoder1", weights_only=False)
-    dec = torch.load("decoder1", weights_only=False)
-    encjp = torch.load("encoder1jp", weights_only=False)
+    enc = torch.load("encoder1",map_location=torch.device('cpu'), weights_only=False)
+    dec = torch.load("decoder1",map_location=torch.device('cpu'), weights_only=False)
+    encjp = torch.load("encoder1jp",map_location=torch.device('cpu'), weights_only=False)
     
     return enc, dec, encjp
 
@@ -180,60 +178,59 @@ def init_models():
 # 5) Streamlit UI
 # ------------------------------
 def main():
-    st.title("🔎Found In Translation")
-    
-    jp = False
+    st.title("🔎 Found In Translation")
 
-    # 1) Load resources
+    # Language selection toggle
+    language = st.radio("Choose Language:", ["English", "Japanese"])
+
+    # Load resources
     w2v, w2vjp = load_w2v_model()
     enc, dec, encjp = init_models()
 
-    # 3) Let user input one of the three sentences
-    user_sentence = st.text_input("Enter one of the trained sentences here:")
+    # Select appropriate encoder & Word2Vec model based on language
+    if language == "English":
+        encoder = enc
+        w2v_model = w2v
+    else:
+        encoder = encjp
+        w2v_model = w2vjp
+
+    # User input
+    user_sentence = st.text_input(f"Enter a sentence in {language}:")
 
     if st.button("Generate Image"):
         # Convert user sentence into a list of words
         words = re.findall(r'\b\w+\b', user_sentence.lower())
         if not words:
-            st.error("Please enter a non-empty sentence.")
+            st.error("Please enter a valid sentence.")
             return
-        
-        # 4) Generate the image
-        canvas = torch.zeros(1,3,128,128)
+
+        # Generate the image
+        canvas = torch.zeros(1, 3, 128, 128)
         for w in words:
-            if not jp:
-                if w not in w2v.wv.key_to_index:
-                    st.warning(f"Word '{w}' not in vocabulary. Using zero vector.")
-                    w_vec = torch.zeros((1,16))
-                else:
-                    w_vec = torch.from_numpy(w2v.wv[w]).float().unsqueeze(0)
+            if w not in w2v_model.wv.key_to_index:
+                st.warning(f"Word '{w}' not in vocabulary. Using zero vector.")
+                w_vec = torch.zeros((1, 16))
             else:
-                if w not in w2vjp.wv.key_to_index:
-                    st.warning(f"Word '{w}' not in vocabulary. Using zero vector.")
-                    w_vec = torch.zeros((1,16))
-                else:
-                    w_vec = torch.from_numpy(w2vjp.wv[w]).float().unsqueeze(0)
-            if not jp:
-                canvas = enc(w_vec, canvas)
-            else:
-                canvas = encjp(w_vec, canvas)
+                w_vec = torch.from_numpy(w2v_model.wv[w]).float().unsqueeze(0)
+            canvas = encoder(w_vec, canvas)
+
+        # Decode sentence
         pic = canvas.clone()
-        context = torch.zeros((1,10))
+        context = torch.zeros((1, 10))
         caption = []
         for w in words:
             word, canvas = dec(canvas, context)
             context = word
             caption.append(word)
-        
-        # 5) Convert to numpy and show
-        # Optionally clamp or apply sigmoid if needed
-        output_np = pic.detach().clone()
-        # If you want a [0,1] range:
-        output_np = output_np.squeeze().permute(1,2,0).numpy()
-        # Show with Streamlit
-        st.image(output_np[:,:,::-1],
-                 caption="Decoded sentence:"+" ".join([w2v.wv.index_to_key[w.argmax()] for w in caption]),
-                 clamp=True, use_container_width=True)
 
+        # Convert to numpy and show
+        output_np = pic.detach().clone().squeeze().permute(1, 2, 0).numpy()
+        
+        # Display output image with decoded sentence
+        decoded_sentence =" ".join([w2v_model.wv.index_to_key[w.argmax()] for w in caption])
+        decoded_caption = "Decoded sentence:"+" ".join([w2v.wv.index_to_key[w.argmax()] for w in caption])
+        st.image(output_np[:, :, ::-1], clamp=True, use_container_width=True)
+        st.write(f"<div style='text-align:center;'><p style='font-size:24px;'><b>{decoded_caption}</b></p><div>", unsafe_allow_html=True)
 if __name__ == "__main__":
     main()
