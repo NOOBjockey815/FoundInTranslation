@@ -1,6 +1,7 @@
 ###pip install streamlit
 ###Run: streamlit run frontend.py    or     python -m streamlit run frontend.py
 
+
 import streamlit as st
 import torch
 from gensim.models import Word2Vec
@@ -9,6 +10,7 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 import torch.nn.init as init
+import re
 
 # ------------------------------
 # 1) Load or define your Word2Vec
@@ -187,7 +189,7 @@ def main():
 
     if st.button("Generate Image"):
         # Convert user sentence into a list of words
-        words = user_sentence.strip().split()
+        words = re.findall(r'\b\w+\b', user_sentence.lower())
         if not words:
             st.error("Please enter a non-empty sentence.")
             return
