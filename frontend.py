@@ -215,7 +215,7 @@ def main():
         output_np = output_np.squeeze().permute(1,2,0).numpy()
         print(output_np)
         # Show with Streamlit
-        st.image(output_np, caption="Generated Image", clamp=True)
+        st.image(output_np, caption="Generated Image", clamp=False, use_container_width=True)
 
 if __name__ == "__main__":
     main()
