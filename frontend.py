@@ -1,7 +1,6 @@
 ###pip install streamlit
 ###Run: streamlit run frontend.py    or     python -m streamlit run frontend.py
 
-
 import streamlit as st
 import torch
 from gensim.models import Word2Vec
@@ -177,17 +176,13 @@ def init_models():
 # 5) Streamlit UI
 # ------------------------------
 def main():
-    st.title("Simple Text-to-Image Demo (Trained on 3 Sentences)")
+    st.title("🔎Found In Translation")
 
     # 1) Load resources
     w2v = load_w2v_model()
     enc, dec = init_models()
 
     # 3) Let user input one of the three sentences
-    st.write("Try one of these sentences:")
-    st.write("- `the bear is eating honey`")
-    st.write("- `where is the hospital`")
-    st.write("- `students are striking`")
     user_sentence = st.text_input("Enter one of the trained sentences here:")
 
     if st.button("Generate Image"):
